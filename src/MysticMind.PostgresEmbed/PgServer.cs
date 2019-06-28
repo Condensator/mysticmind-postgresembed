@@ -3,6 +3,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Polly;
 
 namespace MysticMind.PostgresEmbed
@@ -53,11 +54,11 @@ namespace MysticMind.PostgresEmbed
             Dictionary<string, string> pgServerParams = null,
             List<PgExtensionConfig> pgExtensions = null,
             bool addLocalUserAccessPermission = false,
-            bool clearInstanceDirOnStop = false, 
-            bool clearWorkingDirOnStart=false,
-            int deleteFolderRetryCount =5, 
-            int deleteFolderInitialTimeout =16, 
-            int deleteFolderTimeoutFactor =2,
+            bool clearInstanceDirOnStop = false,
+            bool clearWorkingDirOnStart = false,
+            int deleteFolderRetryCount = 5,
+            int deleteFolderInitialTimeout = 16,
+            int deleteFolderTimeoutFactor = 2,
             string locale = null)
         {
             PgVersion = pgVersion;
@@ -117,7 +118,7 @@ namespace MysticMind.PostgresEmbed
             PgDir = Path.Combine(InstanceDir, "pgsql");
             PgBinDir = Path.Combine(PgDir, "bin");
             DataDir = Path.Combine(InstanceDir, "data");
-            
+
 
             // setup the policy for retry pertaining to downloading binary
             _downloadRetryPolicy =
@@ -126,7 +127,7 @@ namespace MysticMind.PostgresEmbed
             //Set up the policy for retry pertaining to folder deletion.
             _deleteFoldersRetryPolicy =
                 Polly.Policy.Handle<Exception>()
-                    .WaitAndRetry(deleteFolderRetryCount, retryAttempt =>TimeSpan.FromMilliseconds(deleteFolderInitialTimeout *(int) Math.Pow(deleteFolderTimeoutFactor, retryAttempt-1)));
+                    .WaitAndRetry(deleteFolderRetryCount, retryAttempt => TimeSpan.FromMilliseconds(deleteFolderInitialTimeout * (int)Math.Pow(deleteFolderTimeoutFactor, retryAttempt - 1)));
 
             if (!string.IsNullOrEmpty(locale))
             {
@@ -158,7 +159,7 @@ namespace MysticMind.PostgresEmbed
         {
             get
             {
-                return PG_DBNAME; 
+                return PG_DBNAME;
             }
         }
 
@@ -208,7 +209,7 @@ namespace MysticMind.PostgresEmbed
             }
 
             NormalizeAttributes(directoryPath);
-            _deleteFoldersRetryPolicy.Execute(() =>Directory.Delete(directoryPath, true));
+            _deleteFoldersRetryPolicy.Execute(() => Directory.Delete(directoryPath, true));
         }
 
         private static void NormalizeAttributes(string directoryPath)
@@ -492,14 +493,20 @@ namespace MysticMind.PostgresEmbed
                 StartServer();
 
                 CreateExtensions();
-            } 
+            }
             else
             {
                 StartServer();
             }
-            
+
         }
 
+        public async Task StartAsync()
+            => await StartAsync(CancellationToken.None);
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            await Task.Run(() => Start(), cancellationToken);
+        }
         public void Stop()
         {
             StopServer();
